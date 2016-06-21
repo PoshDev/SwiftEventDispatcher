@@ -14,8 +14,6 @@ class LocalSettings {
     private let localSettings = NSUserDefaults.standardUserDefaults()
     static let sharedInstance = LocalSettings()
 
-    // MARK: - initialization
-
     private let eventDispatcher = EventDispatcher()
 
     func startListening(listener: SettingsDelegate) {
@@ -28,7 +26,7 @@ class LocalSettings {
 
     var isNewUser: Bool {
         get {
-            return !localSettings.boolForKey("isNewUser")
+            return localSettings.boolForKey("isNewUser")
         }
         set {
             let oldValue = isNewUser
