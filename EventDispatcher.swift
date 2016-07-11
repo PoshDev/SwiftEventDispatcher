@@ -23,27 +23,21 @@
 
 import Foundation
 
-private class WeakRef {
-    private weak var _value: AnyObject?
-    var value: AnyObject? { return _value }
+// Tracks listeners subscribed to an event stream and makes it easy to dispatch events to all subscribed listeners
+class EventDispatcher {
 
-    init(_ object: AnyObject) {
-        self._value = object
-    }
-}
+    var serial = false  // If true, the listeners are dispatched serially
 
-class EventManager {
-    private var listeners: [WeakRef] = []
-    private let listenerQueue = dispatch_queue_create("posh.winedefined.LockQueue", nil) // Lock when using listeners
-    
+    // Subscribe to the events dispatched by the EventManager
     func startListening(listener: AnyObject) {
-        dispatch_barrier_async(listenerQueue) { [weak self] in
+        dispatch_barrier_async(listenersListLockQueue) { [weak self] in
             self?.listeners.append(WeakRef(listener))
         }
     }
 
+    // Unsubscribe to the events dispatched by the EventManager
     func stopListening(listener: AnyObject) {
-        dispatch_barrier_async(listenerQueue) { [weak self] in
+        dispatch_barrier_async(listenersListLockQueue) { [weak self] in
             if self == nil {
                 return
             }
@@ -51,19 +45,41 @@ class EventManager {
         }
     }
 
-    func forEachListener(action: (AnyObject)->Void, done: (()->Void)?) {
-        dispatch_async(listenerQueue) { [weak self] in
+    // Called by the dispatcher to run action on each of the subscribed listeners
+    func forEachListener(action: (AnyObject)->Void) {
+        dispatch_async(listenersListLockQueue) { [weak self] in
             if self == nil {
                 return
             }
             for listener in self!.listeners {
                 if let existingListener = listener.value {
-                    action(existingListener)
+                    self!.scheduleAction(action, forListener: existingListener)
                 }
             }
-            if done != nil {
-                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), done!)
-            }
         }
+    }
+
+    private var listeners: [WeakRef] = []
+    private let listenersListLockQueue = dispatch_queue_create("com.poshdevelopment.event_manager_lock", nil)  // Lock when using listeners
+    private let dispatchQueue = dispatch_queue_create("com.poshdevelopment.event_manager_lock", nil)
+
+    private func scheduleAction(action: (AnyObject)->Void, forListener listener: AnyObject) {
+        let block = { () -> Void in
+            action(listener)
+        }
+        if (serial) {
+            dispatch_barrier_async(dispatchQueue, block)
+        } else {
+            dispatch_async(dispatchQueue, block)
+        }
+    }
+}
+
+private class WeakRef {
+    private weak var _value: AnyObject?
+    var value: AnyObject? { return _value }
+
+    init(_ object: AnyObject) {
+        self._value = object
     }
 }
