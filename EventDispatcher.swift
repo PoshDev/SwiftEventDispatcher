@@ -31,29 +31,30 @@ class EventDispatcher {
     // Subscribe to the events dispatched by the EventManager
     func startListening(listener: AnyObject) {
         dispatch_barrier_async(listenersListLockQueue) { [weak self] in
-            self?.listeners.append(WeakRef(listener))
+            if let this = self {
+                this.listeners = this.listeners.filter{$0.value != nil && $0.value !== listener}
+                this.listeners.append(WeakRef(listener))
+            }
         }
     }
 
     // Unsubscribe to the events dispatched by the EventManager
     func stopListening(listener: AnyObject) {
         dispatch_barrier_async(listenersListLockQueue) { [weak self] in
-            if self == nil {
-                return
+            if let this = self {
+                this.listeners = this.listeners.filter{$0.value != nil && $0.value !== listener}
             }
-            self!.listeners = self!.listeners.filter{$0.value != nil}
         }
     }
 
     // Called by the dispatcher to run action on each of the subscribed listeners
     func forEachListener(action: (AnyObject)->Void) {
         dispatch_async(listenersListLockQueue) { [weak self] in
-            if self == nil {
-                return
-            }
-            for listener in self!.listeners {
-                if let existingListener = listener.value {
-                    self!.scheduleAction(action, forListener: existingListener)
+            if let this = self {
+                for listener in self!.listeners {
+                    if let existingListener = listener.value {
+                        this.scheduleAction(action, forListener: existingListener)
+                    }
                 }
             }
         }
