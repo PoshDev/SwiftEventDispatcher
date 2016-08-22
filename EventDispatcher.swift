@@ -32,7 +32,7 @@ class EventDispatcher {
     func startListening(listener: AnyObject) {
         dispatch_barrier_async(listenersListLockQueue) { [weak self] in
             if let this = self {
-                this.listeners = this.listeners.filter{$0.value !== listener}
+                this.listeners = this.listeners.filter{$0 !== listener}
                 this.listeners.append(listener)
             }
         }
@@ -42,7 +42,7 @@ class EventDispatcher {
     func stopListening(listener: AnyObject) {
         dispatch_barrier_async(listenersListLockQueue) { [weak self] in
             if let this = self {
-                this.listeners = this.listeners.filter{$0.value !== listener}
+                this.listeners = this.listeners.filter{$0 !== listener}
             }
         }
     }
