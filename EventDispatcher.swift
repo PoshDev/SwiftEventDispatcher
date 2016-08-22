@@ -32,8 +32,8 @@ class EventDispatcher {
     func startListening(listener: AnyObject) {
         dispatch_barrier_async(listenersListLockQueue) { [weak self] in
             if let this = self {
-                this.listeners = this.listeners.filter{$0.value != nil && $0.value !== listener}
-                this.listeners.append(WeakRef(listener))
+                this.listeners = this.listeners.filter{$0.value !== listener}
+                this.listeners.append(listener)
             }
         }
     }
@@ -42,7 +42,7 @@ class EventDispatcher {
     func stopListening(listener: AnyObject) {
         dispatch_barrier_async(listenersListLockQueue) { [weak self] in
             if let this = self {
-                this.listeners = this.listeners.filter{$0.value != nil && $0.value !== listener}
+                this.listeners = this.listeners.filter{$0.value !== listener}
             }
         }
     }
@@ -51,16 +51,14 @@ class EventDispatcher {
     func forEachListener(action: (AnyObject)->Void) {
         dispatch_async(listenersListLockQueue) { [weak self] in
             if let this = self {
-                for listener in self!.listeners {
-                    if let existingListener = listener.value {
-                        this.scheduleAction(action, forListener: existingListener)
-                    }
+                for listener in this.listeners {
+                    this.scheduleAction(action, forListener: listener)
                 }
             }
         }
     }
 
-    private var listeners: [WeakRef] = []
+    private var listeners: [AnyObject] = []
     private let listenersListLockQueue = dispatch_queue_create("com.poshdevelopment.event_manager_lock", nil)  // Lock when using listeners
     private let dispatchQueue = dispatch_queue_create("com.poshdevelopment.event_manager_lock", nil)
 
